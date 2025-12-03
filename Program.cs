@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 
 namespace CarShowroom
@@ -9,13 +8,15 @@ namespace CarShowroom
     {
         struct Car
         {
-            public string CarName;   
-            public double Price;     
-            public int Year;         
-            public string Type;     
+            public int id;
+            public string CarName;
+            public double Price;
+            public int Year;
+            public string Type;
 
-            public Car(string name, double price, int year, string type)
+            public Car(int id, string name, double price, int year, string type)
             {
+                this.id = id;
                 CarName = name;
                 Price = price;
                 Year = year;
@@ -24,127 +25,50 @@ namespace CarShowroom
         }
 
         static List<Car> cars = new List<Car>();
-        static bool hasPurchase = false;
-        static string lastCar = "";
-        static int lastQuantity = 0;
-        static int lastDiscount = 0;
-        static double lastTax = 0;
-        static double lastFinalPriceWithTax = 0;
-
         static Dictionary<string, string> accounts = new Dictionary<string, string>();
+        static bool isManager = false;
+        static readonly string managerPassword = "1234";
+        static Random random = new Random();
 
         static void Main(string[] args)
         {
             Console.OutputEncoding = Encoding.UTF8;
 
-            string[] carsName =
-            {
-                "Chevrolet Corvette C7 Z06",
-                "Dodge RAM TRX 1500",
-                "Chevrolet Corvette C8 Z06",
-                "Audi RS6 Performance GT",
-                "Audi Q8"
-            };
-
-            double[] carsPrice =
-            {
-                100000,
-                150000,
-                150000,
-                238000,
-                97000
-            };
-
+            string[] carsName = { "Chevrolet Corvette C7 Z06", "Dodge RAM TRX 1500", "Chevrolet Corvette C8 Z06", "Audi RS6 Performance GT", "Audi Q8" };
+            double[] carsPrice = { 100000, 150000, 150000, 238000, 97000 };
             int[] carsYear = { 2016, 2021, 2023, 2024, 2022 };
             string[] carsType = { "Sport", "Truck", "Sport", "Sport", "SUV" };
 
             for (int i = 0; i < carsName.Length; i++)
-            {
-                cars.Add(new Car(carsName[i], carsPrice[i], carsYear[i], carsType[i]));
-            }
+                cars.Add(new Car(random.Next(1000, 9999), carsName[i], carsPrice[i], carsYear[i], carsType[i]));
 
-            Console.WriteLine("Welcome. You need to Login to continue or Register a new account.");
-            AuthMenu();
-
-            bool exit = false;
-            while (!exit)
-            {
-                Console.Clear();
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("WELCOME TO CARSHOWROOM");
-                Console.ResetColor();
-                Console.WriteLine("1. Show Car List");
-                Console.WriteLine("2. Buy a Car");
-                Console.WriteLine("3. Add Cars (enter multiple)");
-                Console.WriteLine("4. Statistics");
-                if (hasPurchase) Console.WriteLine("5. Purchase Receipt");
-                Console.WriteLine(hasPurchase ? "6. Settings" : "5. Settings");
-                Console.WriteLine(hasPurchase ? "7. Info about cars" : "6. Info about cars");
-                Console.WriteLine(hasPurchase ? "8. Exit" : "7. Exit");
-                Console.Write("Please select an option: ");
-
-                int choice;
-                try
-                {
-                    if (!int.TryParse(Console.ReadLine(), out choice))
-                    {
-                        throw new FormatException("Must enter a number.");
-                    }
-                }
-                catch (FormatException fe)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Error: " + fe.Message);
-                    Console.ResetColor();
-                    Console.WriteLine("Press any key to continue...");
-                    Console.ReadKey();
-                    continue; 
-                }
-
-                switch (choice)
-                {
-                    case 1:
-                        ShowCarList();
-                        break;
-                    case 2:
-                        BuyCar();
-                        break;
-                    case 3:
-                        AddCarsInteractive();
-                        break;
-                    case 4:
-                        ShowStatistics();
-                        break;
-                    case 5:
-                        if (hasPurchase) ShowReceipt(); else Settings();
-                        break;
-                    case 6:
-                        if (hasPurchase) Settings(); else InfoAboutCars();
-                        break;
-                    case 7:
-                        if (hasPurchase) InfoAboutCars(); else exit = true;
-                        break;
-                    case 8:
-                        if (hasPurchase) exit = true;
-                        else
-                        {
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.WriteLine("Invalid option. Please try again.");
-                            Console.ResetColor();
-                        }
-                        break;
-                    default:
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("Invalid option. Please try again.");
-                        Console.ResetColor();
-                        break;
-                }
-            }
-
-            Console.WriteLine("Goodbye.");
+            RoleSelect();
+            MainMenu();
         }
 
-        static void AuthMenu()
+        static void RoleSelect()
+        {
+            while (true)
+            {
+                Console.WriteLine("Select your role:");
+                Console.WriteLine("1 - Client");
+                Console.WriteLine("2 - Manager");
+                Console.Write("Choice: ");
+                string cmd = Console.ReadLine();
+
+                if (cmd == "1") { ClientAuth(); return; }
+                else if (cmd == "2")
+                {
+                    Console.Write("Enter manager password: ");
+                    string p = ReadPassword();
+                    if (p == managerPassword) { isManager = true; Console.WriteLine("Manager access granted."); return; }
+                    else { Console.WriteLine("Wrong password."); continue; }
+                }
+                else Console.WriteLine("Invalid.");
+            }
+        }
+
+        static void ClientAuth()
         {
             while (true)
             {
@@ -152,99 +76,50 @@ namespace CarShowroom
                 Console.WriteLine("2 - Register");
                 Console.Write("Choice: ");
                 string cmd = Console.ReadLine();
+
                 if (cmd == "1")
                 {
-                    bool ok = Login();
-                    if (ok) return;
-                    else
-                    {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("Failed to login. Exiting application.");
-                        Console.ResetColor();
-                        Environment.Exit(0);
-                    }
+                    if (Login()) return;
+                    else Environment.Exit(0);
                 }
-                else if (cmd == "2")
-                {
-                    Register();
-                }
-                else
-                {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("Unknown command. Try again.");
-                    Console.ResetColor();
-                }
+                else if (cmd == "2") Register();
+                else Console.WriteLine("Invalid.");
             }
         }
 
         static bool Login()
         {
-            const int maxAttempts = 3;
             int attempts = 0;
-            do
+            while (attempts < 3)
             {
-                Console.Write("Enter username (email): ");
-                string username = Console.ReadLine()?.Trim();
+                Console.Write("Enter username: ");
+                string u = Console.ReadLine();
                 Console.Write("Enter password: ");
-                string password = ReadPassword();
+                string p = ReadPassword();
 
-                if (username == null || password == null)
+                if (accounts.ContainsKey(u) && accounts[u] == p)
                 {
-                    Console.WriteLine("Invalid input. Try again.");
-                    attempts++;
-                    continue; 
-                }
-
-                if (accounts.ContainsKey(username) && accounts[username] == password)
-                {
-                    Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine("Login successful.");
-                    Console.ResetColor();
                     return true;
                 }
                 else
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Login failed.");
-                    Console.ResetColor();
+                    Console.WriteLine("Wrong data.");
                     attempts++;
                 }
-            } while (attempts < maxAttempts);
-
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"Maximum attempts ({maxAttempts}) reached.");
-            Console.ResetColor();
+            }
             return false;
         }
 
         static void Register()
         {
-            Console.Write("Enter new username (email): ");
-            string username = Console.ReadLine()?.Trim();
-            if (string.IsNullOrWhiteSpace(username))
-            {
-                Console.WriteLine("Invalid username. Returning to auth menu.");
-                return;
-            }
-
-            if (accounts.ContainsKey(username))
-            {
-                Console.WriteLine("User already exists. Try logging in.");
-                return;
-            }
-
-            Console.Write("Enter new password: ");
-            string password = ReadPassword();
-            if (string.IsNullOrWhiteSpace(password))
-            {
-                Console.WriteLine("Invalid password. Returning to auth menu.");
-                return;
-            }
-
-            accounts[username] = password;
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("Registration successful. Now login.");
-            Console.ResetColor();
+            Console.Write("Enter username: ");
+            string u = Console.ReadLine();
+            if (accounts.ContainsKey(u)) { Console.WriteLine("User exists."); return; }
+            Console.Write("Enter password: ");
+            string p = ReadPassword();
+            accounts[u] = p;
+            Console.WriteLine("Registration complete.");
         }
 
         static string ReadPassword()
@@ -253,278 +128,168 @@ namespace CarShowroom
             while (true)
             {
                 var key = Console.ReadKey(true);
-                if (key.Key == ConsoleKey.Enter)
-                {
-                    Console.WriteLine();
-                    break;
-                }
-                else if (key.Key == ConsoleKey.Backspace)
-                {
-                    if (sb.Length > 0)
-                    {
-                        sb.Length--;
-                        Console.Write("\b \b");
-                    }
-                }
-                else
-                {
-                    sb.Append(key.KeyChar);
-                    Console.Write("*");
-                }
+                if (key.Key == ConsoleKey.Enter) { Console.WriteLine(); break; }
+                if (key.Key == ConsoleKey.Backspace && sb.Length > 0) { sb.Length--; Console.Write("\b \b"); continue; }
+                sb.Append(key.KeyChar);
+                Console.Write("*");
             }
             return sb.ToString();
+        }
+
+        static void MainMenu()
+        {
+            while (true)
+            {
+                Console.Clear();
+                Console.WriteLine("WELCOME TO CARSHOWROOM");
+                Console.WriteLine("1. Show Car List");
+                Console.WriteLine("2. Add Cars");
+                Console.WriteLine("3. Search Car by ID");
+                Console.WriteLine("4. Delete Car by ID");
+                Console.WriteLine("5. Sort Cars by Price (Bubble Sort)");
+                Console.WriteLine("6. Sort Cars by Price (List.Sort())");
+                Console.WriteLine("7. Show Statistics");
+                Console.WriteLine("8. Exit");
+                Console.Write("Select option: ");
+                if (!int.TryParse(Console.ReadLine(), out int choice)) continue;
+
+                switch (choice)
+                {
+                    case 1: ShowCarList(); break;
+                    case 2: AddCarsInteractive(); break;
+                    case 3: SearchCarByID(); break;
+                    case 4: DeleteCarByID(); break;
+                    case 5: BubbleSortCarsByPrice(); break;
+                    case 6: ListSortCarsByPrice(); break;
+                    case 7: ShowStatistics(); break;
+                    case 8: return;
+                }
+            }
         }
 
         static void ShowCarList()
         {
             Console.Clear();
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("List of cars:");
-            Console.ResetColor();
-
+            Console.WriteLine("{0,-6} {1,-30} {2,-10} {3,-6} {4,-10}", "ID", "Name", "Price", "Year", "Type");
+            Console.WriteLine(new string('-', 70));
             for (int i = 0; i < cars.Count; i++)
             {
-                var c = cars[i];
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Write($"{i + 1}. {c.CarName} - ");
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.Write($"{c.Price:N0}");
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("$");
-                Console.ResetColor();
-                Console.WriteLine($"    Year: {c.Year}, Type: {c.Type}");
+                Car c = cars[i];
+                Console.WriteLine("{0,-6} {1,-30} {2,-10} {3,-6} {4,-10}", c.id, c.CarName, c.Price, c.Year, c.Type);
             }
-
-            Console.WriteLine("Press any key to return...");
-            Console.ReadKey();
-        }
-
-        static void BuyCar()
-        {
-            Console.Clear();
-            ShowCarList();
-
-            Console.Write("Enter the number of the car you want to buy (1-{0}) or 0 to return: ", cars.Count);
-            int chooseCar;
-            if (!int.TryParse(Console.ReadLine(), out chooseCar))
-            {
-                Console.WriteLine("Error: You must enter only numbers!");
-                Console.ReadKey();
-                return;
-            }
-
-            if (chooseCar == 0) return;
-
-            if (chooseCar < 1 || chooseCar > cars.Count)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Invalid car number. Returning to main menu...");
-                Console.ResetColor();
-                Console.ReadKey();
-                return;
-            }
-
-            chooseCar -= 1; 
-            int quantity;
-            Console.Write("Enter quantity: ");
-            if (!int.TryParse(Console.ReadLine(), out quantity) || quantity <= 0)
-            {
-                Console.WriteLine("Error: Quantity must be a positive integer!");
-                Console.ReadKey();
-                return;
-            }
-
-            double totalPrice = cars[chooseCar].Price * quantity;
-            Random random = new Random();
-            int discount = random.Next(1, 10); 
-            double finalPrice = totalPrice - (totalPrice * discount / 100.0);
-            finalPrice = Math.Round(finalPrice, 2);
-
-            double taxRate = Math.Pow(finalPrice / 100000.0, 0.2) * 0.02;
-            double tax = finalPrice * taxRate;
-            tax = Math.Round(tax, 2);
-
-            double finalPriceWithTax = finalPrice + tax;
-
-            hasPurchase = true;
-            lastCar = cars[chooseCar].CarName;
-            lastQuantity = quantity;
-            lastDiscount = discount;
-            lastTax = tax;
-            lastFinalPriceWithTax = finalPriceWithTax;
-
-            Console.Clear();
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("Purchase confirmed!");
-            Console.ResetColor();
-            ShowReceipt();
-        }
-
-        static void ShowReceipt()
-        {
-            Console.Clear();
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("Your Purchase Receipt:");
-            Console.ResetColor();
-            Console.WriteLine($"Car: {lastCar}");
-            Console.WriteLine($"Quantity: {lastQuantity}");
-            Console.WriteLine($"Discount: {lastDiscount}%");
-            Console.WriteLine($"Tax: {lastTax}$");
-            Console.WriteLine($"Final Price (with tax): {lastFinalPriceWithTax}$");
-
-            Console.WriteLine("Press any key to return to main menu...");
-            Console.ReadKey();
-        }
-
-        static void Settings()
-        {
-            Console.Clear();
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("Settings Menu (not implemented)");
-            Console.ResetColor();
-            Console.WriteLine("Press any key to return to main menu...");
-            Console.ReadKey();
-        }
-
-        static void InfoAboutCars()
-        {
-            Console.Clear();
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("Information About Cars (not implemented)");
-            Console.ResetColor();
-            Console.WriteLine("Press any key to return to main menu...");
             Console.ReadKey();
         }
 
         static void AddCarsInteractive()
         {
             Console.Clear();
-            Console.Write("How many cars would you like to add? (min 1): ");
-            int count;
-            if (!int.TryParse(Console.ReadLine(), out count) || count < 1)
-            {
-                Console.WriteLine("Invalid number. Returning to menu.");
-                Console.ReadKey();
-                return;
-            }
+            Console.Write("How many cars to add: ");
+            if (!int.TryParse(Console.ReadLine(), out int cnt) || cnt < 1) return;
 
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i < cnt; i++)
             {
-                Console.WriteLine($"Entering car #{i + 1}:");
                 Console.Write("Name: ");
                 string name = Console.ReadLine();
-                if (string.IsNullOrWhiteSpace(name))
-                {
-                    Console.WriteLine("Empty name — skipping this entry.");
-                    continue; 
-                }
-
                 Console.Write("Price: ");
-                if (!double.TryParse(Console.ReadLine(), out double price) || price <= 0)
-                {
-                    Console.WriteLine("Invalid price — skipping this entry.");
-                    continue;
-                }
-
+                if (!double.TryParse(Console.ReadLine(), out double price)) { Console.WriteLine("Invalid price."); i--; continue; }
                 Console.Write("Year: ");
-                if (!int.TryParse(Console.ReadLine(), out int year) || year < 1886 || year > DateTime.Now.Year + 1)
-                {
-                    Console.WriteLine("Invalid year — skipping this entry.");
-                    continue;
-                }
-
+                if (!int.TryParse(Console.ReadLine(), out int year)) { Console.WriteLine("Invalid year."); i--; continue; }
                 Console.Write("Type: ");
                 string type = Console.ReadLine();
-                if (string.IsNullOrWhiteSpace(type))
-                {
-                    type = "Unknown";
-                }
-
-                cars.Add(new Car(name, price, year, type));
-                Console.WriteLine("Car added.");
+                cars.Add(new Car(random.Next(1000, 9999), name, price, year, type));
             }
+        }
 
-            Console.WriteLine("Adding complete. Press any key...");
+        static void SearchCarByID()
+        {
+            Console.Clear();
+            Console.Write("Enter ID to search: ");
+            if (!int.TryParse(Console.ReadLine(), out int id)) { Console.WriteLine("Invalid ID."); Console.ReadKey(); return; }
+
+            for (int i = 0; i < cars.Count; i++)
+            {
+                if (cars[i].id == id)
+                {
+                    Car c = cars[i];
+                    Console.WriteLine("Found car:");
+                    Console.WriteLine("{0,-6} {1,-30} {2,-10} {3,-6} {4,-10}", c.id, c.CarName, c.Price, c.Year, c.Type);
+                    Console.ReadKey();
+                    return;
+                }
+            }
+            Console.WriteLine("Car not found.");
+            Console.ReadKey();
+        }
+
+        static void DeleteCarByID()
+        {
+            Console.Clear();
+            Console.Write("Enter ID to delete: ");
+            if (!int.TryParse(Console.ReadLine(), out int id)) { Console.WriteLine("Invalid ID."); Console.ReadKey(); return; }
+
+            for (int i = 0; i < cars.Count; i++)
+            {
+                if (cars[i].id == id)
+                {
+                    cars.RemoveAt(i);
+                    Console.WriteLine("Car deleted.");
+                    Console.ReadKey();
+                    return;
+                }
+            }
+            Console.WriteLine("Car not found.");
+            Console.ReadKey();
+        }
+
+        static void BubbleSortCarsByPrice()
+        {
+            for (int i = 0; i < cars.Count - 1; i++)
+            {
+                for (int j = 0; j < cars.Count - i - 1; j++)
+                {
+                    if (cars[j].Price > cars[j + 1].Price)
+                    {
+                        Car temp = cars[j];
+                        cars[j] = cars[j + 1];
+                        cars[j + 1] = temp;
+                    }
+                }
+            }
+            Console.WriteLine("Cars sorted by price (Bubble Sort).");
+            Console.ReadKey();
+        }
+
+        static void ListSortCarsByPrice()
+        {
+            cars.Sort((x, y) => x.Price.CompareTo(y.Price));
+            Console.WriteLine("Cars sorted by price (List.Sort()).");
             Console.ReadKey();
         }
 
         static void ShowStatistics()
         {
             Console.Clear();
-            if (cars.Count == 0)
+            if (cars.Count == 0) { Console.WriteLine("No cars available."); Console.ReadKey(); return; }
+
+            double sum = 0;
+            double minPrice = cars[0].Price;
+            double maxPrice = cars[0].Price;
+
+            for (int i = 0; i < cars.Count; i++)
             {
-                Console.WriteLine("No cars in database.");
-                Console.ReadKey();
-                return;
+                sum += cars[i].Price;
+                if (cars[i].Price < minPrice) minPrice = cars[i].Price;
+                if (cars[i].Price > maxPrice) maxPrice = cars[i].Price;
             }
 
-            double total = 0;
-            double min = double.MaxValue;
-            double max = double.MinValue;
-            int countPriceAbove = 0;
-            double threshold;
-            Console.Write("Enter price threshold to count cars above (e.g., 100000): ");
-            if (!double.TryParse(Console.ReadLine(), out threshold))
-            {
-                threshold = 100000; 
-            }
+            double avg = sum / cars.Count;
 
-            foreach (var c in cars)
-            {
-                if (c.Price < 0) continue; 
-                if (c.Price > 10_000_000) 
-                {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("Extremely high price detected, stopping scan early.");
-                    Console.ResetColor();
-                    break; 
-                }
-
-                total += c.Price;
-                if (c.Price < min) min = c.Price;
-                if (c.Price > max) max = c.Price;
-                if (c.Price > threshold) countPriceAbove++;
-            }
-
-            int n = cars.Count;
-            double average = n > 0 ? total / n : 0;
-
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("STATISTICS REPORT");
-            Console.ResetColor();
-            Console.WriteLine($"Total number of car records: {n}");
-            Console.WriteLine($"Total price sum: {total:N2}$");
-            Console.WriteLine($"Average price: {average:N2}$");
-            Console.WriteLine($"Count of cars with price > {threshold:N2}$: {countPriceAbove}");
-            Console.WriteLine($"Minimum price: {(min == double.MaxValue ? 0 : min):N2}$");
-            Console.WriteLine($"Maximum price: {(max == double.MinValue ? 0 : max):N2}$");
-
-            PrintFormattedReport(total, average, countPriceAbove, min, max);
-
-            Console.WriteLine("Press any key to return...");
+            Console.WriteLine("Total cars: " + cars.Count);
+            Console.WriteLine("Min price: " + minPrice);
+            Console.WriteLine("Max price: " + maxPrice);
+            Console.WriteLine("Sum of prices: " + sum);
+            Console.WriteLine("Average price: " + avg);
             Console.ReadKey();
-        }
-
-        static void PrintFormattedReport(double total, double avg, int countAbove, double min, double max)
-        {
-            Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine("===== FORMATTED REPORT =====");
-            Console.ResetColor();
-            Console.WriteLine($"Generated at: {DateTime.Now}");
-            Console.WriteLine($"Total sum: {total:N2}$");
-            Console.WriteLine($"Average: {avg:N2}$");
-            Console.WriteLine($"Count above threshold: {countAbove}");
-            Console.WriteLine($"Min price: {(min == double.MaxValue ? 0 : min):N2}$");
-            Console.WriteLine($"Max price: {(max == double.MinValue ? 0 : max):N2}$");
-            Console.WriteLine("List of top 3 most expensive cars:");
-            var top3 = cars.OrderByDescending(c => c.Price).Take(3).ToList();
-            for (int i = 0; i < top3.Count; i++)
-            {
-                var c = top3[i];
-                Console.WriteLine($"{i + 1}. {c.CarName} — {c.Price:N2}$ ({c.Year}, {c.Type})");
-            }
-            Console.WriteLine("============================");
         }
     }
 }
