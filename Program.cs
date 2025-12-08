@@ -1,125 +1,242 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 
-namespace CarShowroom
+namespace CarShowroomCSV
 {
     internal class Program
     {
         struct Car
         {
-            public int id;
-            public string CarName;
+            public int Id;
+            public string Name;
             public double Price;
             public int Year;
             public string Type;
 
             public Car(int id, string name, double price, int year, string type)
             {
-                this.id = id;
-                CarName = name;
+                Id = id;
+                Name = name;
                 Price = price;
                 Year = year;
                 Type = type;
             }
-        }
 
-        static List<Car> cars = new List<Car>();
-        static Dictionary<string, string> accounts = new Dictionary<string, string>();
-        static bool isManager = false;
-        static readonly string managerPassword = "1234";
-        static Random random = new Random();
+            public override string ToString() => $"{Id},{Name},{Price},{Year},{Type}";
 
-        static void Main(string[] args)
-        {
-            Console.OutputEncoding = Encoding.UTF8;
-
-            string[] carsName = { "Chevrolet Corvette C7 Z06", "Dodge RAM TRX 1500", "Chevrolet Corvette C8 Z06", "Audi RS6 Performance GT", "Audi Q8" };
-            double[] carsPrice = { 100000, 150000, 150000, 238000, 97000 };
-            int[] carsYear = { 2016, 2021, 2023, 2024, 2022 };
-            string[] carsType = { "Sport", "Truck", "Sport", "Sport", "SUV" };
-
-            for (int i = 0; i < carsName.Length; i++)
-                cars.Add(new Car(random.Next(1000, 9999), carsName[i], carsPrice[i], carsYear[i], carsType[i]));
-
-            RoleSelect();
-            MainMenu();
-        }
-
-        static void RoleSelect()
-        {
-            while (true)
+            public static Car? FromCsv(string line)
             {
-                Console.WriteLine("Select your role:");
-                Console.WriteLine("1 - Client");
-                Console.WriteLine("2 - Manager");
-                Console.Write("Choice: ");
-                string cmd = Console.ReadLine();
-
-                if (cmd == "1") { ClientAuth(); return; }
-                else if (cmd == "2")
+                try
                 {
-                    Console.Write("Enter manager password: ");
-                    string p = ReadPassword();
-                    if (p == managerPassword) { isManager = true; Console.WriteLine("Manager access granted."); return; }
-                    else { Console.WriteLine("Wrong password."); continue; }
+                    var parts = line.Split(',');
+                    if (parts.Length != 5) return null;
+                    return new Car(
+                        int.Parse(parts[0]),
+                        parts[1],
+                        double.Parse(parts[2]),
+                        int.Parse(parts[3]),
+                        parts[4]
+                    );
                 }
-                else Console.WriteLine("Invalid.");
+                catch
+                {
+                    return null;
+                }
             }
         }
 
-        static void ClientAuth()
+        struct User
+        {
+            public int Id;
+            public string Email;
+            public string PasswordHash;
+
+            public User(int id, string email, string passwordHash)
+            {
+                Id = id;
+                Email = email;
+                PasswordHash = passwordHash;
+            }
+
+            public override string ToString() => $"{Id},{Email},{PasswordHash}";
+
+            public static User? FromCsv(string line)
+            {
+                try
+                {
+                    var parts = line.Split(',');
+                    if (parts.Length != 3) return null;
+                    return new User(
+                        int.Parse(parts[0]),
+                        parts[1],
+                        parts[2]
+                    );
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+        }
+
+        static List<Car> cars = new List<Car>();
+        static List<User> users = new List<User>();
+        static bool isManager = false;
+        const string managerPassword = "123";
+        const string carsFile = "cars.csv";
+        const string usersFile = "users.csv";
+
+        static void Main()
+        {
+            LoadCars();
+            LoadUsers();
+            ChooseRole();
+
+            bool exit = false;
+            while (!exit)
+            {
+                Console.Clear();
+                Console.WriteLine("WELCOME TO CARSHOWROOM CSV");
+                Console.WriteLine(isManager ? "Manager menu:" : "Client menu:");
+                if (isManager)
+                {
+                    Console.WriteLine("1. Show Cars 2. Buy Car 3. Add Car 4. Remove Car 5. Stats 6. Search 7. Sort 8. Exit");
+                }
+                else
+                {
+                    Console.WriteLine("1. Show Cars 2. Buy Car 3. Stats 4. Search 5. Exit");
+                }
+
+                Console.Write("Select option: ");
+                if (!int.TryParse(Console.ReadLine(), out int choice)) continue;
+
+                if (isManager)
+                {
+                    switch (choice)
+                    {
+                        case 1: ShowCars(); break;
+                        case 2: BuyCar(); break;
+                        case 3: AddCar(); break;
+                        case 4: RemoveCar(); break;
+                        case 5: ShowStats(); break;
+                        case 6: SearchCar(); break;
+                        case 7: SortCars(); break;
+                        case 8: exit = true; break;
+                    }
+                }
+                else
+                {
+                    switch (choice)
+                    {
+                        case 1: ShowCars(); break;
+                        case 2: BuyCar(); break;
+                        case 3: ShowStats(); break;
+                        case 4: SearchCar(); break;
+                        case 5: exit = true; break;
+                    }
+                }
+            }
+        }
+
+        static void LoadCars()
+        {
+            if (!File.Exists(carsFile))
+            {
+                File.WriteAllText(carsFile, "Id,Name,Price,Year,Type\n");
+                return;
+            }
+            cars.Clear();
+            var lines = File.ReadAllLines(carsFile).Skip(1);
+            foreach (var line in lines)
+            {
+                var car = Car.FromCsv(line);
+                if (car.HasValue) cars.Add(car.Value);
+            }
+        }
+
+        static void SaveCars()
+        {
+            var lines = new List<string> { "Id,Name,Price,Year,Type" };
+            lines.AddRange(cars.Select(c => c.ToString()));
+            File.WriteAllLines(carsFile, lines);
+        }
+
+        static void LoadUsers()
+        {
+            if (!File.Exists(usersFile))
+            {
+                File.WriteAllText(usersFile, "Id,Email,PasswordHash\n");
+                return;
+            }
+            users.Clear();
+            var lines = File.ReadAllLines(usersFile).Skip(1);
+            foreach (var line in lines)
+            {
+                var user = User.FromCsv(line);
+                if (user.HasValue) users.Add(user.Value);
+            }
+        }
+
+        static void SaveUsers()
+        {
+            var lines = new List<string> { "Id,Email,PasswordHash" };
+            lines.AddRange(users.Select(u => u.ToString()));
+            File.WriteAllLines(usersFile, lines);
+        }
+
+        static int NextCarId() => cars.Count == 0 ? 1 : cars.Max(c => c.Id) + 1;
+        static int NextUserId() => users.Count == 0 ? 1 : users.Max(u => u.Id) + 1;
+
+        static void ChooseRole()
         {
             while (true)
             {
-                Console.WriteLine("1 - Login");
-                Console.WriteLine("2 - Register");
-                Console.Write("Choice: ");
-                string cmd = Console.ReadLine();
-
-                if (cmd == "1")
+                Console.WriteLine("1 - Client 2 - Manager");
+                string choice = Console.ReadLine();
+                if (choice == "1") { isManager = false; AuthUser(); return; }
+                if (choice == "2")
                 {
-                    if (Login()) return;
-                    else Environment.Exit(0);
+                    isManager = true;
+                    Console.Write("Enter manager password: ");
+                    if (ReadPassword() == managerPassword) return;
+                    Console.WriteLine("Wrong password.");
                 }
-                else if (cmd == "2") Register();
-                else Console.WriteLine("Invalid.");
+            }
+        }
+
+        static void AuthUser()
+        {
+            while (true)
+            {
+                Console.WriteLine("1-Login 2-Register");
+                string cmd = Console.ReadLine();
+                if (cmd == "1") { if (Login()) return; }
+                if (cmd == "2") Register();
             }
         }
 
         static bool Login()
         {
-            int attempts = 0;
-            while (attempts < 3)
-            {
-                Console.Write("Enter username: ");
-                string u = Console.ReadLine();
-                Console.Write("Enter password: ");
-                string p = ReadPassword();
-
-                if (accounts.ContainsKey(u) && accounts[u] == p)
-                {
-                    Console.WriteLine("Login successful.");
-                    return true;
-                }
-                else
-                {
-                    Console.WriteLine("Wrong data.");
-                    attempts++;
-                }
-            }
-            return false;
+            Console.Write("Email: "); string email = Console.ReadLine();
+            Console.Write("Password: "); string password = ReadPassword();
+            string hash = ComputeHash(password);
+            var user = users.FirstOrDefault(u => u.Email == email && u.PasswordHash == hash);
+            if (user.Email != null) return true;
+            Console.WriteLine("Login failed."); return false;
         }
 
         static void Register()
         {
-            Console.Write("Enter username: ");
-            string u = Console.ReadLine();
-            if (accounts.ContainsKey(u)) { Console.WriteLine("User exists."); return; }
-            Console.Write("Enter password: ");
-            string p = ReadPassword();
-            accounts[u] = p;
-            Console.WriteLine("Registration complete.");
+            Console.Write("Email: "); string email = Console.ReadLine();
+            if (users.Any(u => u.Email == email)) { Console.WriteLine("User exists."); return; }
+            Console.Write("Password: "); string password = ReadPassword();
+            users.Add(new User(NextUserId(), email, ComputeHash(password)));
+            SaveUsers();
+            Console.WriteLine("Registered successfully.");
         }
 
         static string ReadPassword()
@@ -128,168 +245,86 @@ namespace CarShowroom
             while (true)
             {
                 var key = Console.ReadKey(true);
-                if (key.Key == ConsoleKey.Enter) { Console.WriteLine(); break; }
-                if (key.Key == ConsoleKey.Backspace && sb.Length > 0) { sb.Length--; Console.Write("\b \b"); continue; }
-                sb.Append(key.KeyChar);
-                Console.Write("*");
+                if (key.Key == ConsoleKey.Enter) break;
+                if (key.Key == ConsoleKey.Backspace && sb.Length > 0) { sb.Length--; Console.Write("\b \b"); }
+                else { sb.Append(key.KeyChar); Console.Write("*"); }
             }
+            Console.WriteLine();
             return sb.ToString();
         }
 
-        static void MainMenu()
+        static string ComputeHash(string input)
         {
-            while (true)
-            {
-                Console.Clear();
-                Console.WriteLine("WELCOME TO CARSHOWROOM");
-                Console.WriteLine("1. Show Car List");
-                Console.WriteLine("2. Add Cars");
-                Console.WriteLine("3. Search Car by ID");
-                Console.WriteLine("4. Delete Car by ID");
-                Console.WriteLine("5. Sort Cars by Price (Bubble Sort)");
-                Console.WriteLine("6. Sort Cars by Price (List.Sort())");
-                Console.WriteLine("7. Show Statistics");
-                Console.WriteLine("8. Exit");
-                Console.Write("Select option: ");
-                if (!int.TryParse(Console.ReadLine(), out int choice)) continue;
-
-                switch (choice)
-                {
-                    case 1: ShowCarList(); break;
-                    case 2: AddCarsInteractive(); break;
-                    case 3: SearchCarByID(); break;
-                    case 4: DeleteCarByID(); break;
-                    case 5: BubbleSortCarsByPrice(); break;
-                    case 6: ListSortCarsByPrice(); break;
-                    case 7: ShowStatistics(); break;
-                    case 8: return;
-                }
-            }
+            using var sha = SHA256.Create();
+            return Convert.ToBase64String(sha.ComputeHash(Encoding.UTF8.GetBytes(input)));
         }
 
-        static void ShowCarList()
+        static void ShowCars()
         {
-            Console.Clear();
-            Console.WriteLine("{0,-6} {1,-30} {2,-10} {3,-6} {4,-10}", "ID", "Name", "Price", "Year", "Type");
-            Console.WriteLine(new string('-', 70));
-            for (int i = 0; i < cars.Count; i++)
+            Console.WriteLine("Cars:");
+            Console.WriteLine("ID | Name | Price | Year | Type");
+            foreach (var c in cars)
             {
-                Car c = cars[i];
-                Console.WriteLine("{0,-6} {1,-30} {2,-10} {3,-6} {4,-10}", c.id, c.CarName, c.Price, c.Year, c.Type);
+                Console.WriteLine($"{c.Id} | {c.Name} | {c.Price} | {c.Year} | {c.Type}");
             }
-            Console.ReadKey();
+            Console.WriteLine("Press any key..."); Console.ReadKey();
         }
 
-        static void AddCarsInteractive()
+        static void AddCar()
         {
-            Console.Clear();
-            Console.Write("How many cars to add: ");
-            if (!int.TryParse(Console.ReadLine(), out int cnt) || cnt < 1) return;
-
-            for (int i = 0; i < cnt; i++)
-            {
-                Console.Write("Name: ");
-                string name = Console.ReadLine();
-                Console.Write("Price: ");
-                if (!double.TryParse(Console.ReadLine(), out double price)) { Console.WriteLine("Invalid price."); i--; continue; }
-                Console.Write("Year: ");
-                if (!int.TryParse(Console.ReadLine(), out int year)) { Console.WriteLine("Invalid year."); i--; continue; }
-                Console.Write("Type: ");
-                string type = Console.ReadLine();
-                cars.Add(new Car(random.Next(1000, 9999), name, price, year, type));
-            }
+            Console.Write("Name: "); string name = Console.ReadLine();
+            Console.Write("Price: "); double price = double.Parse(Console.ReadLine());
+            Console.Write("Year: "); int year = int.Parse(Console.ReadLine());
+            Console.Write("Type: "); string type = Console.ReadLine();
+            cars.Add(new Car(NextCarId(), name, price, year, type));
+            SaveCars();
         }
 
-        static void SearchCarByID()
+        static void RemoveCar()
         {
-            Console.Clear();
-            Console.Write("Enter ID to search: ");
-            if (!int.TryParse(Console.ReadLine(), out int id)) { Console.WriteLine("Invalid ID."); Console.ReadKey(); return; }
-
-            for (int i = 0; i < cars.Count; i++)
-            {
-                if (cars[i].id == id)
-                {
-                    Car c = cars[i];
-                    Console.WriteLine("Found car:");
-                    Console.WriteLine("{0,-6} {1,-30} {2,-10} {3,-6} {4,-10}", c.id, c.CarName, c.Price, c.Year, c.Type);
-                    Console.ReadKey();
-                    return;
-                }
-            }
-            Console.WriteLine("Car not found.");
-            Console.ReadKey();
+            Console.Write("Enter Car ID to remove: ");
+            if (!int.TryParse(Console.ReadLine(), out int id)) return;
+            cars.RemoveAll(c => c.Id == id);
+            SaveCars();
         }
 
-        static void DeleteCarByID()
+        static void BuyCar()
         {
-            Console.Clear();
-            Console.Write("Enter ID to delete: ");
-            if (!int.TryParse(Console.ReadLine(), out int id)) { Console.WriteLine("Invalid ID."); Console.ReadKey(); return; }
-
-            for (int i = 0; i < cars.Count; i++)
-            {
-                if (cars[i].id == id)
-                {
-                    cars.RemoveAt(i);
-                    Console.WriteLine("Car deleted.");
-                    Console.ReadKey();
-                    return;
-                }
-            }
-            Console.WriteLine("Car not found.");
-            Console.ReadKey();
+            Console.Write("Enter Car ID to buy: ");
+            if (!int.TryParse(Console.ReadLine(), out int id)) return;
+            var car = cars.FirstOrDefault(c => c.Id == id);
+            if (car.Name == null) { Console.WriteLine("Car not found."); return; }
+            Console.WriteLine($"Purchased {car.Name} for {car.Price}$");
         }
 
-        static void BubbleSortCarsByPrice()
+        static void ShowStats()
         {
-            for (int i = 0; i < cars.Count - 1; i++)
-            {
-                for (int j = 0; j < cars.Count - i - 1; j++)
-                {
-                    if (cars[j].Price > cars[j + 1].Price)
-                    {
-                        Car temp = cars[j];
-                        cars[j] = cars[j + 1];
-                        cars[j + 1] = temp;
-                    }
-                }
-            }
-            Console.WriteLine("Cars sorted by price (Bubble Sort).");
-            Console.ReadKey();
+            if (cars.Count == 0) { Console.WriteLine("No cars."); Console.ReadKey(); return; }
+            Console.WriteLine($"Total cars: {cars.Count}");
+            Console.WriteLine($"Min price: {cars.Min(c => c.Price)}$");
+            Console.WriteLine($"Max price: {cars.Max(c => c.Price)}$");
+            Console.WriteLine($"Sum price: {cars.Sum(c => c.Price)}$");
+            Console.WriteLine($"Average price: {cars.Average(c => c.Price):F2}$");
+            Console.WriteLine("Press any key..."); Console.ReadKey();
         }
 
-        static void ListSortCarsByPrice()
+        static void SearchCar()
         {
-            cars.Sort((x, y) => x.Price.CompareTo(y.Price));
-            Console.WriteLine("Cars sorted by price (List.Sort()).");
-            Console.ReadKey();
+            Console.Write("Search term: ");
+            string q = Console.ReadLine().ToLower();
+            var result = cars.Where(c => c.Name.ToLower().Contains(q));
+            foreach (var c in result)
+                Console.WriteLine($"{c.Id} | {c.Name} | {c.Price} | {c.Year} | {c.Type}");
+            Console.WriteLine("Press any key..."); Console.ReadKey();
         }
 
-        static void ShowStatistics()
+        static void SortCars()
         {
-            Console.Clear();
-            if (cars.Count == 0) { Console.WriteLine("No cars available."); Console.ReadKey(); return; }
-
-            double sum = 0;
-            double minPrice = cars[0].Price;
-            double maxPrice = cars[0].Price;
-
-            for (int i = 0; i < cars.Count; i++)
-            {
-                sum += cars[i].Price;
-                if (cars[i].Price < minPrice) minPrice = cars[i].Price;
-                if (cars[i].Price > maxPrice) maxPrice = cars[i].Price;
-            }
-
-            double avg = sum / cars.Count;
-
-            Console.WriteLine("Total cars: " + cars.Count);
-            Console.WriteLine("Min price: " + minPrice);
-            Console.WriteLine("Max price: " + maxPrice);
-            Console.WriteLine("Sum of prices: " + sum);
-            Console.WriteLine("Average price: " + avg);
-            Console.ReadKey();
+            Console.WriteLine("1-By Price 2-By Year");
+            string choice = Console.ReadLine();
+            if (choice == "1") cars = cars.OrderBy(c => c.Price).ToList();
+            else if (choice == "2") cars = cars.OrderBy(c => c.Year).ToList();
+            SaveCars();
         }
     }
 }
